@@ -253,22 +253,6 @@ In this MVP version, only one device at a time. Multi-device support is on the r
 
     Publish on F-Droid and Flathub
 
-🤝 Contributing
-
-Contributions are very welcome! This is an open source project built for the community.
-
-    Fork the repository
-
-    Create a branch: git checkout -b feature/my-feature
-
-    Commit: git commit -m 'feat: add new feature'
-
-    Push: git push origin feature/my-feature
-
-    Open a Pull Request
-
-Check out CONTRIBUTING.md for more details.
-📄 License
 
 Distributed under the MIT license. See the LICENSE file for more information.
 <div align="center">
