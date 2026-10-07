@@ -1,14 +1,15 @@
-NexusMote 🖱️📱
+#NexusMote 🖱️📱
 
-    Turn your phone into a wireless touchpad for your Linux desktop.
+    #Turn your phone into a wireless touchpad for your Linux desktop.
 
-https://img.shields.io/badge/License-MIT-yellow.svg
-https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white
-https://img.shields.io/badge/Electron-191970?logo=Electron&logoColor=white
-https://img.shields.io/badge/Expo-000020?logo=expo&logoColor=white
-https://img.shields.io/badge/React_Native-20232A?logo=react&logoColor=61DAFB
-https://img.shields.io/badge/WebSocket-010101?logo=socketdotio&logoColor=white
-https://img.shields.io/badge/PRs-welcome-brightgreen.svg
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Electron](https://img.shields.io/badge/Electron-191970?logo=Electron&logoColor=white)](https://www.electronjs.org/)
+[![Expo](https://img.shields.io/badge/Expo-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![React Native](https://img.shields.io/badge/React_Native-20232A?logo=react&logoColor=61DAFB)](https://reactnative.dev/)
+[![WebSocket](https://img.shields.io/badge/WebSocket-010101?logo=socketdotio&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+
 ✨ What is NexusMote?
 
 NexusMote is an open source application that turns your Android smartphone into a virtual touchpad to control the cursor on your Linux desktop.
