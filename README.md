@@ -199,7 +199,7 @@ In this MVP version, only one device at a time. Multi-device support is on the r
     Native Wayland support
     □
 
-    macOS and Windows support
+    Windows support
     □
 
     Extra gestures (pinch, 3-finger swipe)
