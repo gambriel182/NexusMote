@@ -2,7 +2,7 @@
  * WebSocket client for the NexusMote mobile app.
  * Handles pairing, reconnection, and message dispatch.
  */
-class NexusMoteClient {
+export class NexusMoteClient {
   constructor() {
     this.ws = null;
     this.url = null;
@@ -31,7 +31,6 @@ class NexusMoteClient {
         this.ws.binaryType = 'arraybuffer';
 
         this.ws.onopen = () => {
-          // Send pairing request immediately
           this.send({
             type: 'pair',
             deviceName: this.deviceName,
@@ -54,7 +53,6 @@ class NexusMoteClient {
           if (this.onError) this.onError(err);
         };
 
-        // Resolve after a short delay if pairing accepted
         const timeout = setTimeout(() => reject(new Error('Connection timeout')), 8000);
         const originalOnPaired = this.onPaired;
         this.onPaired = (data) => {
@@ -140,5 +138,3 @@ class NexusMoteClient {
     }, delay);
   }
 }
-
-export default NexusMoteClient;
