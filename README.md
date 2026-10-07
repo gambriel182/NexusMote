@@ -82,42 +82,7 @@ It's made of two applications that talk to each other over WebSocket on the loca
 
     ✅ Distributed as an AppImage (portable, no install)
 
-🏗️ Architecture
-text
 
-┌──────────────────────┐
-│  📱 NexusMote MOBILE │
-│     (Android APK)    │
-│                      │
-│ ┌──────────────────┐ │
-│ │   TOUCHPAD       │ │
-│ │    ↗ cursor      │ │
-│ └──────────────────┘ │
-│                      │
-│   [ L ]       [ R ]  │
-└──────────┬───────────┘
-           │
-           │ WebSocket
-           │ LAN (Wi-Fi)
-           ▼
-┌──────────────────────────┐
-│  🖥️ NexusMote DESKTOP    │
-│       (AppImage)         │
-│                          │
-│  ┌────────────────────┐  │
-│  │ WebSocket Server   │  │
-│  └─────────┬──────────┘  │
-│            ▼             │
-│  ┌────────────────────┐  │
-│  │ Input Controller   │  │
-│  │ mouseMove()        │  │
-│  │ leftClick()        │  │
-│  │ rightClick()       │  │
-│  │ scroll()           │  │
-│  └─────────┬──────────┘  │
-│            ▼             │
-│     🖥️ Linux Desktop     │
-└──────────────────────────┘
 
 📡 Protocol
 

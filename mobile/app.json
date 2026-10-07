@@ -1,0 +1,32 @@
+{
+  "name": "nexusmote",
+  "slug": "nexusmote",
+  "version": "0.1.0",
+  "orientation": "portrait",
+  "scheme": "nexusmote",
+  "userInterfaceStyle": "dark",
+  "newArchEnabled": true,
+  "ios": {
+    "supportsTablet": true,
+    "bundleIdentifier": "com.nexusmote.app"
+  },
+  "android": {
+    "package": "com.nexusmote.app",
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/icon.png",
+      "backgroundColor": "#0f172a"
+    }
+  },
+  "web": {
+    "bundler": "metro",
+    "output": "static"
+  },
+  "plugins": [
+    "expo-camera",
+    "expo-barcode-scanner",
+    "expo-haptics"
+  ],
+  "experiments": {
+    "typedRoutes": true
+  }
+}
