@@ -1,4 +1,4 @@
-#NexusMote 🖱️📱
+NexusMote 🖱️📱
 
     #Turn your phone into a wireless touchpad for your Linux desktop.
 
