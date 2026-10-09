@@ -23,8 +23,7 @@
   },
   "plugins": [
     "expo-camera",
-    "expo-barcode-scanner",
-    "expo-haptics"
+    "expo-barcode-scanner"
   ],
   "experiments": {
     "typedRoutes": true
