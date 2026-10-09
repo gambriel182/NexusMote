@@ -18,7 +18,27 @@ const Touchpad = ({ client }) => {
   const lastMoveY = useRef(0);
   const lastScrollY = useRef(0);
   const touchStartTime = useRef(0);
+  const longPressTimer = useRef(null);
   const longPressTriggered = useRef(false);
+
+  const handleLongPress = useCallback(() => {
+    if (!longPressTriggered.current) {
+      longPressTriggered.current = true;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      client.click('right');
+    }
+  }, [client]);
+
+  const startLongPressTimer = useCallback(() => {
+    longPressTimer.current = setTimeout(handleLongPress, 500);
+  }, [handleLongPress]);
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   const handlePan = useAnimatedGestureHandler({
     onStart: (_, ctx) => {
@@ -30,6 +50,7 @@ const Touchpad = ({ client }) => {
       lastMoveX.current = 0;
       lastMoveY.current = 0;
       lastScrollY.current = 0;
+      runOnJS(startLongPressTimer)();
     },
     onActive: (event, ctx) => {
       const dx = event.translationX;
@@ -54,6 +75,7 @@ const Touchpad = ({ client }) => {
     },
     onEnd: () => {
       isPressed.value = false;
+      runOnJS(clearLongPressTimer)();
       const duration = Date.now() - touchStartTime.current;
       if (!longPressTriggered.current && duration < 300) {
         runOnJS(() => {
@@ -63,21 +85,6 @@ const Touchpad = ({ client }) => {
       }
     },
   });
-
-  const handleLongPress = () => {
-    if (!longPressTriggered.current) {
-      longPressTriggered.current = true;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      client.click('right');
-    }
-  };
-
-  useEffect(() => {
-    if (isPressed.value) {
-      const timer = setTimeout(handleLongPress, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isPressed.value]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -134,6 +141,7 @@ const ConnectionScreen = ({ onConnect }) => {
   const [ip, setIp] = useState('');
   const [port, setPort] = useState('8080');
   const [deviceName, setDeviceName] = useState('My Phone');
+  const [token, setToken] = useState(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState(null);
   const [scanning, setScanning] = useState(false);
@@ -154,7 +162,7 @@ const ConnectionScreen = ({ onConnect }) => {
     setConnecting(true);
     setError(null);
     try {
-      await onConnect(ip.trim(), port || '8080', deviceName.trim() || 'My Phone');
+      await onConnect(ip.trim(), port || '8080', deviceName.trim() || 'My Phone', token);
     } catch (err) {
       setError(err.message || 'Connection failed');
       setConnecting(false);
@@ -170,11 +178,12 @@ const ConnectionScreen = ({ onConnect }) => {
       if (clean.startsWith('ws://')) clean = clean.slice(5);
       if (clean.startsWith('nexusmote://')) {
         const url = new URL(clean);
-        const ipParam = url.searchParams.get('ip');
-        const portParam = url.searchParams.get('port');
-        const tokenParam = url.searchParams.get('token');
-        if (ipParam) setIp(ipParam);
-        if (portParam) setPort(portParam);
+        const scannedIp = url.hostname || '';
+        const scannedPort = url.port || '';
+        const scannedToken = url.searchParams.get('token');
+        if (scannedIp) setIp(scannedIp);
+        if (scannedPort) setPort(scannedPort);
+        if (scannedToken) setToken(scannedToken);
         return;
       }
       const [ipPart, portPart] = clean.split(':');
@@ -297,10 +306,10 @@ export default function App() {
   const [screen, setScreen] = useState('connect');
   const [connected, setConnected] = useState(false);
 
-  const handleConnect = useCallback(async (ip, port, deviceName) => {
+  const handleConnect = useCallback(async (ip, port, deviceName, token) => {
     const wsUrl = `ws://${ip}:${port}/ws`;
     try {
-      await client.connect(wsUrl, deviceName, 'nexusmote-default-token-change-me');
+      await client.connect(wsUrl, deviceName, token || null);
       setScreen('touchpad');
       setConnected(true);
     } catch (err) {

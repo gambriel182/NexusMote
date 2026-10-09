@@ -65,9 +65,7 @@ It's made of two applications that talk to each other over WebSocket on the loca
 
         mouse.move → relative cursor movement
 
-        mouse.left → left click
-
-        mouse.right → right click
+        mouse.click → left/right/middle click (via button field)
 
         mouse.scroll → vertical scroll
 
@@ -111,6 +109,13 @@ json
   "deviceName": "Gabriel Phone",
   "token": "..."
 }
+
+QR Code format
+json
+
+nexusmote://<ip>:<port>?token=<token>
+
+The desktop generates a random token per session and encodes it in the QR code. Scanning the QR on mobile auto-fills the IP, port, and token.
 
 📦 Installation
 

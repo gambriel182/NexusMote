@@ -7,7 +7,11 @@ const express = require('express');
 const { WebSocketServer } = require('ws');
 const { v4: uuidv4 } = require('uuid');
 
-const PAIR_TOKEN = process.env.NEXUSMOTE_TOKEN || 'nexusmote-default-token-change-me';
+const PAIR_TOKEN = process.env.NEXUSMOTE_TOKEN || null;
+
+function generateToken() {
+  return uuidv4().replace(/-/g, '').slice(0, 24);
+}
 
 function startServer({ host, port, onStatusChange }) {
   const app = express();
@@ -17,7 +21,8 @@ function startServer({ host, port, onStatusChange }) {
   const wss = new WebSocketServer({ server, path: '/ws' });
 
   let connectedClient = null;
-  let status = { state: 'disconnected', deviceName: null };
+  const sessionToken = PAIR_TOKEN || generateToken();
+  let status = { state: 'disconnected', deviceName: null, token: sessionToken };
 
   function setStatus(next) {
     status = { ...status, ...next };
@@ -42,7 +47,7 @@ function startServer({ host, port, onStatusChange }) {
     const ip = req.socket.remoteAddress;
     console.log('[ws] connection from', ip);
 
-    send(ws, { type: 'server:hello', port });
+    send(ws, { type: 'server:hello', port, token: sessionToken });
 
     ws.on('message', (raw) => {
       let msg;
@@ -55,7 +60,7 @@ function startServer({ host, port, onStatusChange }) {
 
       // Pairing handshake
       if (msg.type === 'pair') {
-        if (msg.token !== PAIR_TOKEN) {
+        if (msg.token !== sessionToken) {
           send(ws, { type: 'pair:rejected', reason: 'invalid token' });
           return;
         }
@@ -102,6 +107,7 @@ function startServer({ host, port, onStatusChange }) {
   return {
     server,
     wss,
+    token: sessionToken,
     close: () => new Promise((resolve) => server.close(resolve)),
     getStatus: () => status,
     sendToClient: (payload) => {

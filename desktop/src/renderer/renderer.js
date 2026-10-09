@@ -25,12 +25,13 @@ function setDisconnected() {
   deviceName.style.display = 'none';
 }
 
-function setListening(addr, port) {
+function setListening(addr, port, token) {
   setStatus('🟢 Listening', '#3b82f6');
   serverAddr.textContent = `${addr}:${port}`;
   serverPort.textContent = String(port);
   pairSection.style.display = 'block';
-  renderQR(`${addr}:${port}`);
+  const qrText = `nexusmote://${addr}:${port}?token=${token}`;
+  renderQR(qrText);
 }
 
 async function renderQR(text) {
@@ -42,7 +43,7 @@ async function renderQR(text) {
 }
 
 window.nexusmote.onServerStart((info) => {
-  setListening(info.ip, info.port);
+  setListening(info.ip, info.port, info.token);
 });
 
 window.nexusmote.onServerStatus((status) => {

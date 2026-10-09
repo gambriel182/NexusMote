@@ -37,8 +37,9 @@ eas build --platform ios --profile production
 ```
 
 ## Environment Variables
-Create `.env` in mobile/:
+Create `.env` in mobile/ (optional — defaults are sensible):
 ```
-EXPO_PUBLIC_DEFAULT_TOKEN=nexusmote-default-token-change-me
 EXPO_PUBLIC_DEFAULT_PORT=8080
 ```
+
+No token needs to be configured on the mobile app. The desktop server generates a random token per session and encodes it in the QR code. When scanning the QR code, the token is automatically imported. When connecting manually, the token is auto-received from the server via `server:hello`.
