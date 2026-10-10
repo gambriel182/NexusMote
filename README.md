@@ -1,234 +1,264 @@
-NexusMote 🖱️📱
-
-    #Turn your phone into a wireless touchpad for your Linux desktop.
-
+# NexusMote
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Electron](https://img.shields.io/badge/Electron-191970?logo=Electron&logoColor=white)](https://www.electronjs.org/)
-[![Expo](https://img.shields.io/badge/Expo-000020?logo=expo&logoColor=white)](https://expo.dev/)
-[![React Native](https://img.shields.io/badge/React_Native-20232A?logo=react&logoColor=61DAFB)](https://reactnative.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Fastify](https://img.shields.io/badge/Fastify-000000?logo=fastify&logoColor=white)](https://fastify.dev/)
 [![WebSocket](https://img.shields.io/badge/WebSocket-010101?logo=socketdotio&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)](https://kernel.org/)
+[![Hyprland](https://img.shields.io/badge/Hyprland-58E1FF?logo=hyprland&logoColor=black)](https://hypr.land/)
+[![Open Source](https://img.shields.io/badge/Open%20Source-Community-blue)](https://opensource.org/)
 
-✨ What is NexusMote?
+**Turn your smartphone into a PC controller.**
 
-NexusMote is an open source application that turns your Android smartphone into a virtual touchpad to control the cursor on your Linux desktop.
+NexusMote is an open-source project by **NexusPT** that transforms a smartphone into a versatile controller for a Linux desktop.
 
-No cables. No complicated drivers. No manual network configuration. Just two devices on the same Wi-Fi network — and your phone becomes your PC's mouse.
+It combines a customizable Stream Deck, a remote mouse and keyboard, and real-time hardware monitoring in one interface.
 
-It's made of two applications that talk to each other over WebSocket on the local network:
+The project initially targets Linux desktops running Hyprland, with the goal of making desktop control simple, accessible, and customizable.
 
-    📱 NexusMote Mobile — an Android app (.apk) that acts as the touchpad.
+---
 
-    🖥️ NexusMote Desktop — a Linux application (.AppImage) that receives events and injects real movements/clicks into the desktop.
+## Features
 
-🎯 Why use it?
+### 🎛️ Stream Deck
 
-    🛋️ Control your PC from the couch
+- Customizable action buttons.
+- Launch desktop applications.
+- Control audio and media playback.
+- Switch Hyprland workspaces.
+- Create shortcuts for everyday tasks.
+- Build a personalized control panel.
 
-    🎤 Presentations and demos without a physical mouse
+### 🖱️ Remote Mouse & Keyboard
 
-    🖥️ Media centers and HTPC setups
+- Touchpad-style mouse control.
+- Mouse clicks and scrolling.
+- Remote keyboard input.
+- Designed for local network communication.
+- No root access required on the smartphone.
 
-    🧪 Technical curiosity — networking + low-level input in a simple project
+### 📊 Hardware Monitoring
 
-🖱️ Features
-📱 Mobile (Android APK)
+- CPU utilization.
+- RAM usage.
+- System uptime.
+- Network status.
+- CPU temperatures when supported.
+- NVIDIA GPU metrics when available.
+- Real-time updates through WebSocket.
 
-    ✅ Fullscreen touchpad with natural gestures
+### 📱 Smartphone Interface
 
-    ✅ Relative movement: finger → right, cursor → right
+- Responsive mobile-first interface.
+- Designed for Android smartphones and modern mobile browsers.
+- Three main modes: Deck, Mouse, and Monitor.
+- Potential Progressive Web App (PWA) support.
 
-    ✅ Tap = left click
+---
 
-    ✅ Long press = right click
+## Architecture
 
-    ✅ Two fingers = scroll
+NexusMote uses a client-server architecture.
 
-    ✅ Optional L / R buttons for dedicated clicks
+```text
+                 NEXUSMOTE
+                     |
+          +----------+----------+
+          |                     |
+   Smartphone Client       Linux PC Server
+          |                     |
+     Web Interface       Node.js + TypeScript
+          |                     |
+          +---- HTTP / WS ------+
+                                |
+                   +------------+------------+
+                   |            |            |
+                Hyprland      Input       Monitoring
+                hyprctl    Backend       /proc + /sys
+                                          nvidia-smi
+```
 
-    ✅ Haptic feedback on clicks
+### Smartphone Client
 
-    ✅ Server discovery and connection via QR Code or IP
+The client provides the user interface for remote desktop control. It communicates with the server over the local network using HTTP and WebSocket.
 
-    ✅ Built with Expo / React Native + TypeScript
+### Linux Server
 
-🖥️ Desktop (Linux AppImage)
+The server receives authenticated requests, validates actions, executes permitted operations, and provides hardware metrics.
 
-    ✅ Local WebSocket server (LAN)
+### Desktop Integration
 
-    ✅ QR Code / IP pairing — connect in seconds
+Hyprland integration uses its available control interfaces. Mouse and keyboard input use a compatible Linux input backend.
 
-    ✅ Token-based authentication per device
+### Hardware Monitoring
 
-    ✅ Event parsing and handling:
+System metrics are collected through Linux system interfaces, with optional GPU metrics when supported by the installed drivers and hardware.
 
-        mouse.move → relative cursor movement
+---
 
-        mouse.click → left/right/middle click (via button field)
+## Technology Stack
 
-        mouse.scroll → vertical scroll
+| Component | Technology |
+|---|---|
+| Language | TypeScript |
+| Runtime | Node.js |
+| HTTP server | Fastify |
+| Real-time communication | WebSocket |
+| Client interface | HTML, CSS, JavaScript/TypeScript |
+| Desktop integration | Hyprland |
+| Hardware monitoring | Linux `/proc` and `/sys` |
+| Optional GPU monitoring | NVIDIA `nvidia-smi` |
+| Mobile deployment | PWA, planned |
 
-    ✅ Real input injection via uiohook / native X11 / Wayland integration
+---
 
-    ✅ Real-time status:
+## Requirements
 
-        🟢 Connected
+### PC
 
-        🔴 Disconnected
+- Linux operating system.
+- Node.js and npm.
+- Hyprland for Hyprland-specific features.
+- A compatible input backend for remote mouse and keyboard.
+- Smartphone and PC connected to the same trusted local network.
 
-        📱 Paired device name
+### Smartphone
 
-    ✅ Distributed as an AppImage (portable, no install)
+- Android or another device with a modern web browser.
+- Wi-Fi or another supported network connection.
+- No root access required.
 
+---
 
+## Getting Started
 
-📡 Protocol
+NexusMote is currently under development. The following steps describe the planned development setup.
 
-Minimalist JSON communication over WebSocket.
-Movement
-json
+### 1. Install dependencies
 
-{ "type": "mouse.move", "dx": 14, "dy": -7 }
+On Arch Linux:
 
-Click
-json
+```bash
+sudo pacman -S --needed nodejs npm git
+```
 
-{ "type": "mouse.click", "button": "left" }
+### 2. Create the project
 
-Scroll
-json
+```bash
+mkdir -p ~/Projetos/NexusMote
+cd ~/Projetos/NexusMote
 
-{ "type": "mouse.scroll", "dy": 3 }
+npm init -y
+npm install fastify @fastify/static ws
+npm install -D typescript tsx @types/node @types/ws
 
-Pairing
-json
+npx tsc --init
+```
 
-{
-  "type": "pair",
-  "deviceName": "Gabriel Phone",
-  "token": "..."
-}
+### 3. Start development
 
-QR Code format
-json
+Once the server and client have been implemented, configure the appropriate development script in `package.json` and start the server.
 
-nexusmote://<ip>:<port>?token=<token>
+> The application is not yet ready for production. These commands initialize the development environment; they do not install a finished NexusMote application.
 
-The desktop generates a random token per session and encodes it in the QR code. Scanning the QR on mobile auto-fills the IP, port, and token.
+---
 
-📦 Installation
+## Project Structure
 
-NexusMote ships as two ready-to-use binaries. No need to compile anything.
-🖥️ 1. Desktop — Linux (AppImage)
+```text
+NexusMote/
+├── src/
+│   ├── server.ts
+│   ├── actions.ts
+│   ├── metrics.ts
+│   └── input.ts
+├── public/
+│   ├── index.html
+│   ├── app.css
+│   └── app.js
+├── package.json
+├── tsconfig.json
+├── LICENSE
+└── README.md
+```
 
-    Go to the Releases page and download the latest file:
-    text
+The structure represents the planned MVP and may change during development.
 
-    NexusMote-x.x.x.AppImage
+---
 
-    Make it executable:
-    bash
+## Development Roadmap
 
-    chmod +x NexusMote-x.x.x.AppImage
+### Phase 1 — Core MVP
 
-    Run it:
-    bash
+- [ ] Set up the Node.js server.
+- [ ] Build the mobile interface.
+- [ ] Implement predefined desktop actions.
+- [ ] Add CPU and RAM monitoring.
+- [ ] Implement WebSocket updates.
+- [ ] Establish authenticated client connections.
 
-    ./NexusMote-x.x.x.AppImage
+### Phase 2 — Remote Input
 
-    In the app window you'll see:
+- [ ] Implement touchpad controls.
+- [ ] Add mouse clicks and scrolling.
+- [ ] Support remote keyboard input.
+- [ ] Validate compatibility with Hyprland and Wayland.
+- [ ] Configure input permissions securely.
 
-        Your PC's local IP
+### Phase 3 — Advanced Features
 
-        A QR Code to pair your phone
+- [ ] Add customizable Stream Deck buttons.
+- [ ] Add GPU and temperature monitoring where available.
+- [ ] Implement device pairing.
+- [ ] Add PWA installation support.
+- [ ] Improve interface customization.
+- [ ] Expand Linux desktop compatibility.
 
-        The connection status (🟢 / 🔴)
+---
 
-    💡 Wayland note: if you're on Wayland and the cursor doesn't move, try running with --ozone-platform=x11 or use an X11 session. Native support is on the roadmap.
+## Security
 
-    🔓 Permissions: some distros may require extra permissions to inject input (uinput). If you run into issues, check the FAQ.
+Security is a core design requirement.
 
-📱 2. Mobile — Android (APK)
+- Authenticate devices before allowing control.
+- Validate every incoming request.
+- Allow only explicitly permitted desktop actions.
+- Never execute arbitrary shell commands supplied by clients.
+- Restrict server access to trusted networks.
+- Use secure transport when appropriate.
+- Apply the principle of least privilege to input permissions.
+- Do not expose the control server directly to the public Internet without appropriate security measures.
 
-    Go to the Releases page and download:
-    text
+NexusMote is designed primarily for local network use.
 
-    NexusMote-x.x.x.apk
+---
 
-    On your phone, allow installation from unknown sources (Settings → Security).
+## Contributing
 
-    Open the .apk and install.
+Contributions, bug reports, suggestions, and improvements are welcome.
 
-    Open the NexusMote app and:
+If you want to contribute:
 
-        Option A: point your camera at the QR Code shown on the desktop
+1. Fork the repository.
+2. Create a branch for your changes.
+3. Implement and test your changes.
+4. Submit a pull request with a clear description.
 
-        Option B: manually type the IP + port shown on the desktop
+Please keep changes focused and document new functionality.
 
-    Done — your phone is now a touchpad. 🎉
+---
 
-📶 Network requirements
+## License
 
-    Both devices on the same Wi-Fi network
+NexusMote is intended to be released under the **MIT License**.
 
-    Linux firewall must allow the WebSocket port (default: 8080)
+The MIT license permits reuse, modification, and distribution subject to its terms. The repository should include a `LICENSE` file containing the complete MIT license text before the project is published under that license.
 
-    Some routers with AP isolation may block the connection — disable it if needed
+---
 
-🛠️ Stack
-Layer	Technologies
-Desktop	Linux, Electron, Node.js, TypeScript, WebSocket, uiohook / X11 / Wayland, AppImage
-Mobile	Expo, React Native, TypeScript, WebSocket, Gesture Handler, APK
-Communication	WebSocket over LAN
-❓ FAQ
+## Credits
 
-The cursor doesn't move on Wayland.
-Wayland restricts input injection for security. Use an X11 session or run with --ozone-platform=x11. Native Wayland support is on the roadmap.
+Built with ❤️ by **NexusPT**.
 
-My phone can't find the PC.
-Make sure they're on the same Wi-Fi network and the firewall allows the port. Some routers have AP isolation enabled — disable it.
-
-The AppImage won't open.
-You're likely missing libfuse2. On Ubuntu/Debian:
-bash
-
-sudo apt install libfuse2
-
-Can I use more than one phone?
-In this MVP version, only one device at a time. Multi-device support is on the roadmap.
-🗺️ Roadmap
-
-    □
-
-    Native Wayland support
-    □
-
-    Windows support
-    □
-
-    Extra gestures (pinch, 3-finger swipe)
-    □
-
-    Auto-reconnect
-    □
-
-    End-to-end encryption
-    □
-
-    "Presentation" mode with hotkeys
-    □
-
-    Multi-device support
-    □
-
-    Publish on F-Droid and Flathub
-
-
-Distributed under the MIT license. See the LICENSE file for more information.
-<div align="center">
-
-NexusMote — your phone, now your mouse. 🖱️✨
-
-Made with ❤️ for the Linux community
-</div>
+**NexusMote — Your smartphone. Your desktop. Your control.**
