@@ -116,7 +116,6 @@ On other Linux distributions, install Git, Node.js, and npm using your distribut
 
 ### 2. Clone the repository
 
-Replace `YOUR_USERNAME` with the GitHub account or organization hosting the repository.
 
 ```bash
 git clone https://github.com/gambriel182/NexusMote.git

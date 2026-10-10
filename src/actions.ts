@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify';
-import { spawn } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
-const execFile = promisify(spawn);
+const execFileAsync = promisify(execFile);
 
 export interface ActionResult {
   success: boolean;
@@ -22,7 +22,7 @@ export async function launchApp(app: string): Promise<ActionResult> {
 
 export async function setAudioVolume(level: number): Promise<ActionResult> {
   try {
-    await execFile('pactl', ['set-sink-volume', '@DEFAULT_SINK@', `${Math.round(Math.max(0, Math.min(100, level)))}%`]);
+    await execFileAsync('pactl', ['set-sink-volume', '@DEFAULT_SINK@', `${Math.round(Math.max(0, Math.min(100, level)))}%`]);
     return { success: true, output: `Volume set to ${level}%` };
   } catch (err: any) {
     return { success: false, error: 'Failed to set volume' };
@@ -31,7 +31,7 @@ export async function setAudioVolume(level: number): Promise<ActionResult> {
 
 export async function toggleAudioMute(): Promise<ActionResult> {
   try {
-    await execFile('pactl', ['set-sink-mute', '@DEFAULT_SINK@', 'toggle']);
+    await execFileAsync('pactl', ['set-sink-mute', '@DEFAULT_SINK@', 'toggle']);
     return { success: true, output: 'Audio mute toggled' };
   } catch (err: any) {
     return { success: false, error: 'Failed to toggle mute' };
@@ -56,7 +56,7 @@ export async function getAudioVolume(): Promise<ActionResult> {
 
 export async function mediaControl(action: 'play-pause' | 'next' | 'previous' | 'stop'): Promise<ActionResult> {
   try {
-    await execFile('playerctl', [action]);
+    await execFileAsync('playerctl', [action]);
     return { success: true, output: `Media ${action}` };
   } catch (err: any) {
     return { success: false, error: 'Media control failed' };
@@ -66,7 +66,7 @@ export async function mediaControl(action: 'play-pause' | 'next' | 'previous' | 
 export async function switchWorkspace(target: string | number): Promise<ActionResult> {
   try {
     const arg = target === 'next' ? '+1' : target === 'previous' ? '-1' : String(target);
-    await execFile('hyprctl', ['dispatch', 'workspace', arg]);
+    await execFileAsync('hyprctl', ['dispatch', 'workspace', arg]);
     return { success: true, output: `Switched to workspace ${arg}` };
   } catch (err: any) {
     return { success: false, error: 'Workspace switch failed' };

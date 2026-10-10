@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify';
-import { spawn } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
-const execFile = promisify(spawn);
+const execFileAsync = promisify(execFile);
 
 export interface InputResult {
   success: boolean;
@@ -12,7 +12,7 @@ export interface InputResult {
 
 export async function moveMouse(x: number, y: number): Promise<InputResult> {
   try {
-    await execFile('ydotool', ['mousemove', '--', String(Math.round(x)), String(Math.round(y))]);
+    await execFileAsync('ydotool', ['mousemove', '--', String(Math.round(x)), String(Math.round(y))]);
     return { success: true, output: `Mouse moved to ${x},${y}` };
   } catch (err: any) {
     return { success: false, error: 'Mouse move failed' };
