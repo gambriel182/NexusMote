@@ -9,13 +9,13 @@ const MAX_RECONNECT = 5;
 let touchStart = { x: 0, y: 0 };
 let lastTouchTime = 0;
 let isDragging = false;
+let touchpadRect = null;
 
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabPanels = document.querySelectorAll('.tab-panel');
 const deckGrid = document.getElementById('deckGrid');
-const addActionBtn = document.getElementById('addActionBtn');
 const actionModal = document.getElementById('actionModal');
 const actionForm = document.getElementById('actionForm');
 const modalClose = document.getElementById('modalClose');
@@ -25,6 +25,11 @@ const actionParams = document.getElementById('actionParams');
 const toast = document.getElementById('toast');
 const touchpad = document.getElementById('touchpad');
 const mouseBtns = document.querySelectorAll('.mouse-btn');
+const arrowBtns = document.querySelectorAll('.arrow-btn');
+const keyboardToggle = document.getElementById('keyboardToggle');
+const keyboardModal = document.getElementById('keyboardModal');
+const keyboardClose = document.getElementById('keyboardClose');
+const keyboardKeys = document.querySelectorAll('.key');
 
 const metrics = {
   cpuUsage: document.getElementById('cpuUsage'),
@@ -47,6 +52,7 @@ const metrics = {
 };
 
 let storedActions = JSON.parse(localStorage.getItem('nexusmote_actions') || '[]');
+let sensitivity = 1.5;
 
 function connect() {
   ws = new WebSocket(WS_URL);
@@ -227,7 +233,7 @@ function renderActions() {
   });
   const addBtn = document.createElement('button');
   addBtn.className = 'action-btn empty';
-  addBtn.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add</span>';
+  addBtn.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add</span>';
   addBtn.addEventListener('click', openActionModal);
   deckGrid.appendChild(addBtn);
 }
@@ -237,11 +243,11 @@ function createActionButton(action, index) {
   btn.className = 'action-btn';
   btn.dataset.index = index;
   const icons = {
-    launch: '<svg viewBox="0 0 24 24" width="28" height="28"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
-    volume: '<svg viewBox="0 0 24 24" width="28" height="28"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>',
-    mute: '<svg viewBox="0 0 24 24" width="28" height="28"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>',
-    media: '<svg viewBox="0 0 24 24" width="28" height="28"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
-    workspace: '<svg viewBox="0 0 24 24" width="28" height="28"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+    launch: '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+    volume: '<svg viewBox="0 0 24 24" width="26" height="26"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>',
+    mute: '<svg viewBox="0 0 24 24" width="26" height="26"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>',
+    media: '<svg viewBox="0 0 24 24" width="26" height="26"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+    workspace: '<svg viewBox="0 0 24 24" width="26" height="26"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
   };
   btn.innerHTML = icons[action.type] + '<span>' + action.name + '</span>';
   btn.addEventListener('click', () => executeAction(action));
@@ -260,6 +266,72 @@ function openActionModal() {
   actionForm.reset();
   actionParams.innerHTML = '';
   actionModal.classList.add('active');
+  loadActionParams(actionType.value);
+}
+
+async function loadActionParams(type) {
+  if (type === 'launch') {
+    try {
+      const res = await fetch(`${API_BASE}/actions/applications`);
+      const data = await res.json();
+      if (data.success) {
+        const apps = JSON.parse(data.output);
+        const options = apps.map(app => `<option value="${escapeHtml(app.exec)}">${escapeHtml(app.name)}</option>`).join('');
+        actionParams.innerHTML = `
+          <div class="form-group">
+            <label for="paramApp">Application</label>
+            <select id="paramApp" required>
+              <option value="">Select an application</option>
+              ${options}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="paramAppCustom">Or custom command</label>
+            <input type="text" id="paramAppCustom" placeholder="firefox, code, etc.">
+          </div>
+        `;
+      }
+    } catch {
+      actionParams.innerHTML = paramTemplates.launch;
+    }
+  } else if (type === 'media') {
+    try {
+      const res = await fetch(`${API_BASE}/actions/media-players`);
+      const data = await res.json();
+      let playerOptions = '<option value="">Auto-detect</option>';
+      if (data.success) {
+        const players = JSON.parse(data.output);
+        playerOptions += players.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+      }
+      actionParams.innerHTML = `
+        <div class="form-group">
+          <label for="paramPlayer">Media Player (optional)</label>
+          <select id="paramPlayer">
+            ${playerOptions}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="paramMedia">Action</label>
+          <select id="paramMedia" required>
+            <option value="play-pause">Play/Pause</option>
+            <option value="next">Next</option>
+            <option value="previous">Previous</option>
+            <option value="stop">Stop</option>
+          </select>
+        </div>
+      `;
+    } catch {
+      actionParams.innerHTML = paramTemplates.media;
+    }
+  } else {
+    actionParams.innerHTML = paramTemplates[type] || '';
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function closeActionModal() {
@@ -291,10 +363,24 @@ actionForm.addEventListener('submit', (e) => {
   if (!name) return;
 
   const params = {};
-  if (type === 'launch') params.app = document.getElementById('paramApp').value.trim();
-  else if (type === 'volume') params.level = parseInt(document.getElementById('paramLevel').value, 10);
-  else if (type === 'media') params.action = document.getElementById('paramMedia').value;
-  else if (type === 'workspace') params.target = document.getElementById('paramWorkspace').value;
+  if (type === 'launch') {
+    const custom = document.getElementById('paramAppCustom')?.value.trim();
+    const selected = document.getElementById('paramApp')?.value;
+    params.app = custom || selected;
+  } else if (type === 'volume') {
+    params.level = parseInt(document.getElementById('paramLevel').value, 10);
+  } else if (type === 'media') {
+    params.action = document.getElementById('paramMedia').value;
+    const player = document.getElementById('paramPlayer')?.value;
+    if (player) params.player = player;
+  } else if (type === 'workspace') {
+    params.target = document.getElementById('paramWorkspace').value;
+  }
+
+  if (type === 'launch' && !params.app) {
+    showToast('Select an app or enter custom command');
+    return;
+  }
 
   storedActions.push({ name, type, params });
   saveActions();
@@ -332,16 +418,17 @@ function loadActions() {
   renderActions();
 }
 
-let touchpadRect = null;
 function updateTouchpadRect() {
   touchpadRect = touchpad.getBoundingClientRect();
 }
 
+let lastMoveTime = 0;
 function handleTouchStart(e) {
   if (!authenticated) return;
   const touch = e.touches[0];
   touchStart = { x: touch.clientX, y: touch.clientY };
   lastTouchTime = Date.now();
+  lastMoveTime = 0;
   isDragging = false;
   updateTouchpadRect();
 }
@@ -350,17 +437,21 @@ function handleTouchMove(e) {
   if (!authenticated || !touchpadRect) return;
   e.preventDefault();
   const touch = e.touches[0];
-  const dx = touch.clientX - touchStart.x;
-  const dy = touch.clientY - touchStart.y;
-  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+  const dx = (touch.clientX - touchStart.x) * sensitivity;
+  const dy = (touch.clientY - touchStart.y) * sensitivity;
+  if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
     isDragging = true;
-    sendMouseMove(dx * 2, dy * 2);
-    touchStart = { x: touch.clientX, y: touch.clientY };
+    const now = Date.now();
+    if (now - lastMoveTime > 16) { // ~60fps throttle
+      sendMouseMove(dx, dy);
+      touchStart = { x: touch.clientX, y: touch.clientY };
+      lastMoveTime = now;
+    }
   }
 }
 
 function handleTouchEnd(e) {
-  if (!isDragging && Date.now() - lastTouchTime < 300) {
+  if (!isDragging && Date.now() - lastTouchTime < 250) {
     sendMouseClick('left', true);
     setTimeout(() => sendMouseClick('left', false), 50);
   }
@@ -368,7 +459,7 @@ function handleTouchEnd(e) {
 }
 
 function sendMouseMove(dx, dy) {
-  send('input', { inputType: 'mouse_move', data: { x: dx, y: dy, relative: true } });
+  send('input', { inputType: 'mouse_move', data: { x: Math.round(dx), y: Math.round(dy), relative: true } });
 }
 
 function sendMouseClick(button, down) {
@@ -376,7 +467,7 @@ function sendMouseClick(button, down) {
 }
 
 function sendMouseScroll(dx, dy) {
-  send('input', { inputType: 'mouse_scroll', data: { deltaX: dx, deltaY: dy } });
+  send('input', { inputType: 'mouse_scroll', data: { deltaX: Math.round(dx), deltaY: Math.round(dy) } });
 }
 
 touchpad.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -385,17 +476,17 @@ touchpad.addEventListener('touchend', handleTouchEnd);
 
 mouseBtns.forEach(btn => {
   const button = btn.dataset.button;
-  btn.addEventListener('touchstart', () => sendMouseClick(button, true));
-  btn.addEventListener('touchend', () => sendMouseClick(button, false));
-  btn.addEventListener('mousedown', () => sendMouseClick(button, true));
-  btn.addEventListener('mouseup', () => sendMouseClick(button, false));
-  btn.addEventListener('mouseleave', () => sendMouseClick(button, false));
+  btn.addEventListener('touchstart', (e) => { e.preventDefault(); sendMouseClick(button, true); }, { passive: false });
+  btn.addEventListener('touchend', (e) => { e.preventDefault(); sendMouseClick(button, false); });
+  btn.addEventListener('mousedown', (e) => { e.preventDefault(); sendMouseClick(button, true); });
+  btn.addEventListener('mouseup', (e) => { e.preventDefault(); sendMouseClick(button, false); });
+  btn.addEventListener('mouseleave', (e) => { sendMouseClick(button, false); });
 });
 
 touchpad.addEventListener('wheel', (e) => {
   if (!authenticated) return;
   e.preventDefault();
-  sendMouseScroll(e.deltaX, -e.deltaY);
+  sendMouseScroll(e.deltaX * 0.5, -e.deltaY * 0.5);
 }, { passive: false });
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -411,6 +502,49 @@ function init() {
   setInterval(() => {
     if (ws?.readyState === WebSocket.OPEN) send('ping');
   }, 30000);
+  
+  window.addEventListener('resize', updateTouchpadRect);
+  updateTouchpadRect();
+  
+  // Arrow keys for PowerPoint
+  arrowBtns.forEach(btn => {
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); sendKey(btn.dataset.key, true); }, { passive: false });
+    btn.addEventListener('touchend', (e) => { e.preventDefault(); sendKey(btn.dataset.key, false); });
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); sendKey(btn.dataset.key, true); });
+    btn.addEventListener('mouseup', (e) => { e.preventDefault(); sendKey(btn.dataset.key, false); });
+    btn.addEventListener('mouseleave', (e) => { sendKey(btn.dataset.key, false); });
+  });
+  
+  // Virtual keyboard toggle
+  keyboardToggle.addEventListener('click', () => {
+    keyboardModal.classList.add('active');
+    keyboardToggle.classList.add('active');
+  });
+  
+  keyboardClose.addEventListener('click', closeKeyboard);
+  keyboardModal.addEventListener('click', (e) => {
+    if (e.target === keyboardModal) closeKeyboard();
+  });
+  
+  // Virtual keyboard keys
+  keyboardKeys.forEach(key => {
+    key.addEventListener('touchstart', (e) => { e.preventDefault(); sendKey(key.dataset.key, true); key.classList.add('active'); }, { passive: false });
+    key.addEventListener('touchend', (e) => { e.preventDefault(); sendKey(key.dataset.key, false); key.classList.remove('active'); });
+    key.addEventListener('mousedown', (e) => { e.preventDefault(); sendKey(key.dataset.key, true); key.classList.add('active'); });
+    key.addEventListener('mouseup', (e) => { e.preventDefault(); sendKey(key.dataset.key, false); key.classList.remove('active'); });
+    key.addEventListener('mouseleave', (e) => { sendKey(key.dataset.key, false); key.classList.remove('active'); });
+  });
+}
+
+function closeKeyboard() {
+  keyboardModal.classList.remove('active');
+  keyboardToggle.classList.remove('active');
+  keyboardKeys.forEach(k => k.classList.remove('active'));
+}
+
+function sendKey(key, down) {
+  if (!authenticated) return;
+  send('input', { inputType: 'keyboard_key', data: { key, down } });
 }
 
 document.addEventListener('DOMContentLoaded', init);

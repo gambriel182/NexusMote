@@ -5,6 +5,23 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { registerActions } from './actions.js';
 import { registerMetrics } from './metrics.js';
 import { registerInput } from './input.js';
+import { getAllMetrics } from './metrics.js';
+import {
+  launchApp,
+  setAudioVolume,
+  toggleAudioMute,
+  mediaControl,
+  switchWorkspace,
+} from './actions.js';
+import {
+  moveMouse as inputMoveMouse,
+  moveMouseRelative as inputMoveMouseRelative,
+  clickMouse as inputClickMouse,
+  scrollMouse as inputScrollMouse,
+  typeText as inputTypeText,
+  pressKey as inputPressKey,
+  keyCombo as inputKeyCombo,
+} from './input.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,6 +50,10 @@ fastify.get('/api/info', async () => ({
   version: '0.1.0',
   features: ['actions', 'metrics', 'input'],
 }));
+
+registerActions(fastify);
+registerMetrics(fastify);
+registerInput(fastify);
 
 function generateDeviceId(): string {
   return `device_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -124,198 +145,90 @@ function handleMessage(clientId: string, message: any) {
 
 async function handleAction(clientId: string, message: any) {
   const { action, params } = message;
+  const client = clients.get(clientId);
+  if (!client) return;
   try {
-    const result = await executeAction(action, params);
-    const client = clients.get(clientId);
-    if (client) {
-      client.ws.send(JSON.stringify({ type: 'action_result', action, result }));
+    let result: any;
+    switch (action) {
+      case 'launch_app':
+        result = await launchApp(params.app);
+        break;
+      case 'audio_volume':
+        result = await setAudioVolume(params.level);
+        break;
+      case 'audio_mute':
+        result = await toggleAudioMute();
+        break;
+      case 'media_play_pause':
+        result = await mediaControl('play-pause');
+        break;
+      case 'media_next':
+        result = await mediaControl('next');
+        break;
+      case 'media_previous':
+        result = await mediaControl('previous');
+        break;
+      case 'workspace_switch':
+        result = await switchWorkspace(params.index);
+        break;
+      case 'workspace_next':
+        result = await switchWorkspace('next');
+        break;
+      case 'workspace_previous':
+        result = await switchWorkspace('previous');
+        break;
+      default:
+        throw new Error(`Unknown action: ${action}`);
     }
+    client.ws.send(JSON.stringify({ type: 'action_result', action, result }));
   } catch (err: any) {
-    const client = clients.get(clientId);
     if (client) {
       client.ws.send(JSON.stringify({ type: 'action_error', action, error: err.message }));
     }
   }
 }
 
-async function executeAction(action: string, params: any): Promise<any> {
-  switch (action) {
-    case 'launch_app':
-      return launchApp(params.app);
-    case 'audio_volume':
-      return setAudioVolume(params.level);
-    case 'audio_mute':
-      return toggleAudioMute();
-    case 'media_play_pause':
-      return mediaControl('play-pause');
-    case 'media_next':
-      return mediaControl('next');
-    case 'media_previous':
-      return mediaControl('previous');
-    case 'workspace_switch':
-      return switchWorkspace(params.index);
-    case 'workspace_next':
-      return switchWorkspace('next');
-    case 'workspace_previous':
-      return switchWorkspace('previous');
-    default:
-      throw new Error(`Unknown action: ${action}`);
-  }
-}
-
 async function handleInput(clientId: string, message: any) {
   const { inputType, data } = message;
+  const client = clients.get(clientId);
+  if (!client) return;
   try {
-    const result = await executeInput(inputType, data);
-    const client = clients.get(clientId);
-    if (client) {
-      client.ws.send(JSON.stringify({ type: 'input_result', inputType, result }));
+    let result: any;
+    switch (inputType) {
+      case 'mouse_move':
+        result = data.relative
+          ? await inputMoveMouseRelative(data.x, data.y)
+          : await inputMoveMouse(data.x, data.y);
+        break;
+      case 'mouse_click':
+        result = await inputClickMouse(data.button, data.down);
+        break;
+      case 'mouse_scroll':
+        result = await inputScrollMouse(data.deltaX, data.deltaY);
+        break;
+      case 'keyboard_type':
+        result = await inputTypeText(data.text);
+        break;
+      case 'keyboard_key':
+        result = await inputPressKey(data.key, data.down);
+        break;
+      case 'keyboard_combo':
+        result = await inputKeyCombo(data.keys);
+        break;
+      default:
+        throw new Error(`Unknown input type: ${inputType}`);
     }
+    client.ws.send(JSON.stringify({ type: 'input_result', inputType, result }));
   } catch (err: any) {
-    const client = clients.get(clientId);
-    if (client) {
-      client.ws.send(JSON.stringify({ type: 'input_error', inputType, error: err.message }));
-    }
+    client.ws.send(JSON.stringify({ type: 'input_error', inputType, error: err.message }));
   }
-}
-
-async function executeInput(inputType: string, data: any): Promise<any> {
-  const { spawn } = await import('child_process');
-  const { promisify } = await import('util');
-  const execFile = promisify(spawn);
-
-  switch (inputType) {
-    case 'mouse_move':
-      return sendMouseMove(data.x, data.y);
-    case 'mouse_click':
-      return sendMouseClick(data.button, data.down);
-    case 'mouse_scroll':
-      return sendMouseScroll(data.deltaX, data.deltaY);
-    case 'keyboard_type':
-      return sendKeyboardType(data.text);
-    case 'keyboard_key':
-      return sendKeyboardKey(data.key, data.down);
-    default:
-      throw new Error(`Unknown input type: ${inputType}`);
-  }
-}
-
-function launchApp(app: string): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn(app, { detached: true, stdio: 'ignore' });
-    proc.unref();
-    resolve(`Launched ${app}`);
-  });
-}
-
-function setAudioVolume(level: number): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn('pactl', ['set-sink-volume', '@DEFAULT_SINK@', `${Math.round(level)}%`]);
-    proc.on('close', (code) => code === 0 ? resolve(`Volume set to ${level}%`) : reject(new Error('Failed to set volume')));
-  });
-}
-
-function toggleAudioMute(): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn('pactl', ['set-sink-mute', '@DEFAULT_SINK@', 'toggle']);
-    proc.on('close', (code) => code === 0 ? resolve('Audio mute toggled') : reject(new Error('Failed to toggle mute')));
-  });
-}
-
-function mediaControl(action: string): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn('playerctl', [action]);
-    proc.on('close', (code) => code === 0 ? resolve(`Media ${action}`) : reject(new Error('Media control failed')));
-  });
-}
-
-function switchWorkspace(target: string | number): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const arg = target === 'next' ? '+1' : target === 'previous' ? '-1' : String(target);
-    const proc = spawn('hyprctl', ['dispatch', 'workspace', arg]);
-    proc.on('close', (code) => code === 0 ? resolve(`Switched to workspace ${arg}`) : reject(new Error('Workspace switch failed')));
-  });
-}
-
-function sendMouseMove(x: number, y: number): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn('ydotool', ['mousemove', '--', String(x), String(y)]);
-    proc.on('close', (code) => code === 0 ? resolve('Mouse moved') : reject(new Error('Mouse move failed')));
-  });
-}
-
-function sendMouseClick(button: string, down: boolean): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn('ydotool', ['click', down ? '1' : '0', button]);
-    proc.on('close', (code) => code === 0 ? resolve(`Mouse ${button} ${down ? 'down' : 'up'}`) : reject(new Error('Mouse click failed')));
-  });
-}
-
-function sendMouseScroll(deltaX: number, deltaY: number): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn('ydotool', ['mousescroll', '--', String(deltaX), String(deltaY)]);
-    proc.on('close', (code) => code === 0 ? resolve('Mouse scrolled') : reject(new Error('Mouse scroll failed')));
-  });
-}
-
-function sendKeyboardType(text: string): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn('ydotool', ['type', text]);
-    proc.on('close', (code) => code === 0 ? resolve('Text typed') : reject(new Error('Keyboard type failed')));
-  });
-}
-
-function sendKeyboardKey(key: string, down: boolean): Promise<string> {
-  const { spawn } = require('child_process');
-  return new Promise((resolve, reject) => {
-    const proc = spawn('ydotool', ['key', `${down ? '' : 'u'}${key}`]);
-    proc.on('close', (code) => code === 0 ? resolve(`Key ${key} ${down ? 'down' : 'up'}`) : reject(new Error('Keyboard key failed')));
-  });
 }
 
 async function startMetricsBroadcast() {
   setInterval(async () => {
-    const metrics = await getMetrics();
+    const metrics = await getAllMetrics();
     broadcastToAuthenticated({ type: 'metrics', data: metrics });
   }, 2000);
-}
-
-async function getMetrics(): Promise<any> {
-  const { readFile } = await import('fs/promises');
-  try {
-    const cpuData = await readFile('/proc/stat', 'utf-8');
-    const memData = await readFile('/proc/meminfo', 'utf-8');
-    const uptimeData = await readFile('/proc/uptime', 'utf-8');
-
-    const cpuLines = cpuData.trim().split('\n');
-    const cpuTotal = cpuLines[0].split(/\s+/).slice(1).reduce((a, b) => a + parseInt(b), 0);
-    const cpuIdle = parseInt(cpuLines[0].split(/\s+/)[4]);
-
-    const memLines = memData.trim().split('\n');
-    const memTotal = parseInt(memLines[0].split(/\s+/)[1]);
-    const memAvailable = parseInt(memLines[2].split(/\s+/)[1]);
-    const memUsed = memTotal - memAvailable;
-
-    const uptime = parseFloat(uptimeData.split(' ')[0]);
-
-    return {
-      cpu: { usage: Math.round((1 - cpuIdle / cpuTotal) * 100) },
-      memory: { total: memTotal * 1024, used: memUsed * 1024, usage: Math.round((memUsed / memTotal) * 100) },
-      uptime: Math.round(uptime),
-      timestamp: Date.now(),
-    };
-  } catch (err) {
-    return { error: 'Failed to read metrics' };
-  }
 }
 
 async function main() {
@@ -335,10 +248,6 @@ async function main() {
     });
 
     wss.on('connection', handleWebSocketConnection);
-
-    registerActions(fastify);
-    registerMetrics(fastify);
-    registerInput(fastify);
 
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`NexusMote server running on http://${HOST}:${PORT}`);

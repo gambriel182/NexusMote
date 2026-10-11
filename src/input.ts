@@ -10,9 +10,56 @@ export interface InputResult {
   error?: string;
 }
 
+let useYdotool = true;
+
+async function checkYdotool(): Promise<boolean> {
+  try {
+    await execFileAsync('ydotool', ['version']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function checkXdotool(): Promise<boolean> {
+  try {
+    await execFileAsync('xdotool', ['--version']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function initInputBackend() {
+  useYdotool = await checkYdotool();
+  if (!useYdotool) {
+    const hasXdotool = await checkXdotool();
+    if (!hasXdotool) {
+      console.warn('No input backend found (need ydotool or xdotool)');
+    }
+  }
+}
+
+initInputBackend();
+
+async function runYdotoolOrXdotool(ydotoolArgs: string[], xdotoolArgs: string[]): Promise<void> {
+  if (useYdotool) {
+    try {
+      await execFileAsync('ydotool', ydotoolArgs);
+      return;
+    } catch {
+      useYdotool = false;
+    }
+  }
+  await execFileAsync('xdotool', xdotoolArgs);
+}
+
 export async function moveMouse(x: number, y: number): Promise<InputResult> {
   try {
-    await execFileAsync('ydotool', ['mousemove', '--', String(Math.round(x)), String(Math.round(y))]);
+    await runYdotoolOrXdotool(
+      ['mousemove', '--', String(Math.round(x)), String(Math.round(y))],
+      ['mousemove', String(Math.round(x)), String(Math.round(y))]
+    );
     return { success: true, output: `Mouse moved to ${x},${y}` };
   } catch (err: any) {
     return { success: false, error: 'Mouse move failed' };
@@ -21,7 +68,10 @@ export async function moveMouse(x: number, y: number): Promise<InputResult> {
 
 export async function moveMouseRelative(dx: number, dy: number): Promise<InputResult> {
   try {
-    await execFile('ydotool', ['mousemove', '--relative', '--', String(Math.round(dx)), String(Math.round(dy))]);
+    await runYdotoolOrXdotool(
+      ['mousemove', '--relative', '--', String(Math.round(dx)), String(Math.round(dy))],
+      ['mousemove_relative', '--', String(Math.round(dx)), String(Math.round(dy))]
+    );
     return { success: true, output: `Mouse moved relatively by ${dx},${dy}` };
   } catch (err: any) {
     return { success: false, error: 'Mouse relative move failed' };
@@ -30,8 +80,20 @@ export async function moveMouseRelative(dx: number, dy: number): Promise<InputRe
 
 export async function clickMouse(button: 'left' | 'right' | 'middle', down: boolean): Promise<InputResult> {
   try {
-    const btnMap: Record<string, string> = { left: '1', right: '3', middle: '2' };
-    await execFile('ydotool', ['click', down ? '1' : '0', btnMap[button]]);
+    const btnMapYdo: Record<string, string> = { left: '1', right: '3', middle: '2' };
+    const btnMapXdo: Record<string, string> = { left: '1', right: '3', middle: '2' };
+    
+    if (down) {
+      await runYdotoolOrXdotool(
+        ['click', '1', btnMapYdo[button]],
+        ['mousedown', btnMapXdo[button]]
+      );
+    } else {
+      await runYdotoolOrXdotool(
+        ['click', '0', btnMapYdo[button]],
+        ['mouseup', btnMapXdo[button]]
+      );
+    }
     return { success: true, output: `Mouse ${button} ${down ? 'down' : 'up'}` };
   } catch (err: any) {
     return { success: false, error: 'Mouse click failed' };
@@ -40,7 +102,10 @@ export async function clickMouse(button: 'left' | 'right' | 'middle', down: bool
 
 export async function scrollMouse(deltaX: number, deltaY: number): Promise<InputResult> {
   try {
-    await execFile('ydotool', ['mousescroll', '--', String(Math.round(deltaX)), String(Math.round(deltaY))]);
+    await runYdotoolOrXdotool(
+      ['mousescroll', '--', String(Math.round(deltaX)), String(Math.round(deltaY))],
+      ['click', '--repeat', String(Math.abs(Math.round(deltaY))), deltaY > 0 ? '4' : '5']
+    );
     return { success: true, output: `Mouse scrolled ${deltaX},${deltaY}` };
   } catch (err: any) {
     return { success: false, error: 'Mouse scroll failed' };
@@ -49,7 +114,10 @@ export async function scrollMouse(deltaX: number, deltaY: number): Promise<Input
 
 export async function typeText(text: string): Promise<InputResult> {
   try {
-    await execFile('ydotool', ['type', text]);
+    await runYdotoolOrXdotool(
+      ['type', text],
+      ['type', text]
+    );
     return { success: true, output: `Typed ${text.length} characters` };
   } catch (err: any) {
     return { success: false, error: 'Keyboard type failed' };
@@ -58,7 +126,18 @@ export async function typeText(text: string): Promise<InputResult> {
 
 export async function pressKey(key: string, down: boolean): Promise<InputResult> {
   try {
-    await execFile('ydotool', ['key', `${down ? '' : 'u'}${key}`]);
+    const xdoKey = key.replace(/^Key/, '').toLowerCase();
+    if (down) {
+      await runYdotoolOrXdotool(
+        ['key', key],
+        ['keydown', xdoKey]
+      );
+    } else {
+      await runYdotoolOrXdotool(
+        ['key', `u${key}`],
+        ['keyup', xdoKey]
+      );
+    }
     return { success: true, output: `Key ${key} ${down ? 'down' : 'up'}` };
   } catch (err: any) {
     return { success: false, error: 'Keyboard key failed' };
@@ -67,8 +146,13 @@ export async function pressKey(key: string, down: boolean): Promise<InputResult>
 
 export async function keyCombo(keys: string[]): Promise<InputResult> {
   try {
-    for (const key of keys) {
-      await execFile('ydotool', ['key', key]);
+    if (useYdotool) {
+      for (const key of keys) {
+        await execFileAsync('ydotool', ['key', key]);
+      }
+    } else {
+      const xdoKeys = keys.map(k => k.replace(/^Key/, '').toLowerCase());
+      await execFileAsync('xdotool', ['key', xdoKeys.join('+')]);
     }
     return { success: true, output: `Key combo: ${keys.join('+')}` };
   } catch (err: any) {

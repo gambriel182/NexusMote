@@ -1,0 +1,18 @@
+[Unit]
+Description=NexusMote - Smartphone PC Controller
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/Projetos/NexusMote
+Environment=PATH=/home/%i/.bun/bin:/usr/bin:/bin
+Environment=NODE_ENV=production
+ExecStart=/home/%i/.bun/bin/bun run dist/server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

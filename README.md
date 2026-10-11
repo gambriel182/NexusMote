@@ -114,63 +114,95 @@ sudo pacman -S --needed git nodejs npm
 
 On other Linux distributions, install Git, Node.js, and npm using your distribution's package manager.
 
-### 2. Clone the repository
+---
 
+## Quick Setup
 
-```bash
-git clone https://github.com/gambriel182/NexusMote.git
-cd NexusMote
-```
-
-### 3. Install the dependencies
-
-If the repository contains a `package-lock.json`, run:
+Run the automated setup script to install all system dependencies:
 
 ```bash
-npm ci
+chmod +x setup.sh
+./setup.sh
 ```
 
-Otherwise, if it contains a `package.json`, run:
+This installs the required tools for your distribution and sets up the ydotool daemon.
+
+### Manual Installation
+
+**Arch Linux:**
+```bash
+sudo pacman -S --needed nodejs npm git ydotool xdotool playerctl wmctrl libpulse nvidia-utils
+sudo usermod -aG input $USER
+systemctl --user enable --now ydotoold
+```
+
+**Debian/Ubuntu:**
+```bash
+sudo apt update && sudo apt install nodejs npm git ydotool xdotool playerctl wmctrl pulseaudio-utils
+sudo usermod -aG input $USER
+```
+
+**Fedora:**
+```bash
+sudo dnf install nodejs npm git ydotool xdotool playerctl wmctrl pulseaudio-utils
+sudo usermod -aG input $USER
+```
+
+After installing, **reboot or log out/in** for the input group change to take effect.
+
+---
+
+## Getting Started
+
+### 1. Install dependencies
 
 ```bash
 npm install
+# or
+bun install
 ```
 
-### 4. Configure the application
-
-Follow the configuration instructions provided by the project. Depending on the current implementation, this may include setting the server port, configuring device authentication, and enabling supported desktop integrations.
-
-Do not expose the server to untrusted networks.
-
-### 5. Start NexusMote
-
-Use the development or production command defined in `package.json`. For example, if the repository defines a `dev` script:
+### 2. Build the project
 
 ```bash
+npm run build
+```
+
+### 3. Start the server
+
+```bash
+npm start
+# or for development
 npm run dev
 ```
 
-If the project does not yet contain the server implementation or the corresponding npm scripts, the application cannot be started yet. Check the current development status and available scripts before proceeding.
+The server runs on `http://0.0.0.0:3000` by default.
 
 ---
 
 ## Connecting Your Smartphone
 
-Once the server is running and the mobile interface is implemented:
-
 1. Connect your smartphone and PC to the same trusted network.
-2. Find the PC's local IP address.
-3. Open the configured NexusMote address in your smartphone's browser, using the PC's IP address and server port.
-4. Complete the device authentication or pairing process, if implemented.
-5. Open the Deck, Mouse, or Monitor interface and use the available features.
+2. Find the PC's local IP address: `ip addr show | grep inet`
+3. Open `http://<PC_IP>:3000` in your smartphone's browser.
+4. For PWA install: open in Chrome/Edge → menu → "Install app".
 
-For example, if the PC's local IP address is `192.168.1.100` and the server uses port `3000`, the address would be:
+Example: `http://192.168.1.100:3000`
 
-```text
-http://192.168.1.100:3000
-```
+---
 
-This is only an example. Use the actual address and port configured for your installation.
+## Desktop Environment Support
+
+| Feature | Hyprland (Wayland) | Cinnamon/GNOME (X11) | KDE Plasma |
+|---------|-------------------|---------------------|------------|
+| Mouse/Keyboard | ydotool ✓ | ydotool/xdotool ✓ | ydotool ✓ |
+| Media Control | playerctl ✓ | playerctl ✓ | playerctl ✓ |
+| Workspaces | hyprctl ✓ | wmctrl ✓ | wmctrl/kwin ✓ |
+| Audio | pactl ✓ | pactl ✓ | pactl ✓ |
+| Window Info | hyprctl ✓ | xdotool ✓ | xdotool ✓ |
+
+For **Wayland** (Hyprland, Sway, GNOME Wayland): Use `ydotool` with `ydotoold` daemon running.
+For **X11** (Cinnamon, GNOME X11, KDE X11): Use `xdotool` + `wmctrl` as fallback.
 
 ---
 
@@ -179,15 +211,18 @@ This is only an example. Use the actual address and port configured for your ins
 | Component | Technology |
 |---|---|
 | Language | TypeScript |
-| Runtime | Node.js |
+| Runtime | Node.js / Bun |
 | HTTP server | Fastify |
 | Real-time communication | WebSocket |
-| Client interface | HTML, CSS, JavaScript/TypeScript |
-| Desktop integration | Hyprland |
+| Client interface | HTML, CSS, JavaScript (ES Modules) |
+| Desktop integration | Hyprland (Wayland), X11 (Cinnamon/GNOME/KDE) |
+| Input backend | ydotool (Wayland), xdotool (X11 fallback) |
+| Media control | playerctl (MPRIS) |
+| Workspace management | hyprctl / wmctrl |
+| Audio control | pactl (PulseAudio/PipeWire) |
 | System monitoring | Linux `/proc` and `/sys` |
 | Optional GPU monitoring | NVIDIA `nvidia-smi` |
-| Mobile access | Web browser |
-| PWA support | Planned |
+| Mobile access | Web browser, PWA |
 
 ---
 
@@ -241,6 +276,58 @@ The actual repository structure may change as development progresses.
 - [ ] Add PWA installation support.
 - [ ] Improve interface customization.
 - [ ] Expand Linux desktop compatibility.
+
+---
+
+## Troubleshooting
+
+### Mouse cursor doesn't move
+The mouse/keyboard input requires a backend tool and proper permissions:
+
+1. **Install input backend:**
+   ```bash
+   # Arch
+   sudo pacman -S ydotool xdotool
+   # Debian/Ubuntu
+   sudo apt install ydotool xdotool
+   # Fedora
+   sudo dnf install ydotool xdotool
+   ```
+
+2. **Add user to input group (required for ydotool):**
+   ```bash
+   sudo usermod -aG input $USER
+   ```
+   Then **reboot or log out/in**.
+
+3. **Start ydotool daemon (for Wayland):**
+   ```bash
+   systemctl --user enable --now ydotoold
+   ```
+
+4. **Verify it works:**
+   ```bash
+   ydotool mousemove -- 100 100
+   # or
+   xdotool mousemove 100 100
+   ```
+
+### Media keys not working
+- Install `playerctl`: `sudo pacman -S playerctl` (or apt/dnf)
+- Make sure a MPRIS-compatible player is running (Spotify, Firefox, VLC, etc.)
+
+### Workspace switching not working
+- **Hyprland (Wayland):** Uses `hyprctl` automatically
+- **Cinnamon/GNOME/KDE (X11):** Install `wmctrl`: `sudo pacman -S wmctrl`
+
+### Can't connect from phone
+- Check firewall: `sudo ufw allow 3000` or `sudo firewall-cmd --add-port=3000/tcp`
+- Use PC's LAN IP (not localhost): `ip addr show | grep inet`
+- Both devices must be on the same network
+
+### Virtual keyboard / arrow keys not working
+- Same input backend requirements as mouse
+- Arrow buttons in Mouse tab send Left/Right keys for PowerPoint navigation
 
 ---
 
