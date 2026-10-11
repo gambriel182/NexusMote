@@ -78,6 +78,7 @@ function handleWebSocketConnection(ws: WebSocket, req: any) {
   ws.on('message', (data: Buffer) => {
     try {
       const message = JSON.parse(data.toString());
+      console.log(`Message from ${clientId}:`, message.type);
       handleMessage(clientId, message);
     } catch (err) {
       console.error('Invalid message:', err);
@@ -238,7 +239,8 @@ async function main() {
     const wss = new WebSocketServer({ noServer: true });
 
     fastify.server.on('upgrade', (request, socket, head) => {
-      if (request.url === '/ws') {
+      const url = new URL(request.url || '', `http://${request.headers.host}`);
+      if (url.pathname === '/ws') {
         wss.handleUpgrade(request, socket, head, (ws) => {
           wss.emit('connection', ws, request);
         });

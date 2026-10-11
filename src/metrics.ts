@@ -104,10 +104,16 @@ export async function getGpuMetrics(): Promise<GpuMetrics | null> {
       '--format=csv,noheader,nounits'
     ]);
 
+    let spawnError: Error | null = null;
+    proc.on('error', (err) => { spawnError = err; });
+
     const output = await new Promise<string>((resolve, reject) => {
       let data = '';
       proc.stdout.on('data', (chunk) => data += chunk);
-      proc.on('close', (code) => code === 0 ? resolve(data) : reject(new Error('nvidia-smi failed')));
+      proc.on('close', (code) => {
+        if (spawnError) return reject(spawnError);
+        code === 0 ? resolve(data) : reject(new Error('nvidia-smi failed'));
+      });
     });
 
     const [name, utilization, memoryUsed, memoryTotal, temperature] = output.trim().split(', ');

@@ -31,6 +31,9 @@ const keyboardModal = document.getElementById('keyboardModal');
 const keyboardClose = document.getElementById('keyboardClose');
 const keyboardKeys = document.querySelectorAll('.key');
 
+const pressedKeys = new Set();
+const pressedMouseButtons = new Set();
+
 const metrics = {
   cpuUsage: document.getElementById('cpuUsage'),
   cpuBar: document.getElementById('cpuBar'),
@@ -61,20 +64,23 @@ function connect() {
   ws.onopen = () => {
     console.log('WebSocket connected');
     setStatus('connecting', 'Authenticating...');
-    ws.send(JSON.stringify({ type: 'auth', deviceId: getDeviceId(), token: '' }));
+    const authMsg = { type: 'auth', deviceId: getDeviceId(), token: '' };
+    console.log('Sending auth:', authMsg);
+    ws.send(JSON.stringify(authMsg));
   };
 
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
+      console.log('Received:', msg.type, msg);
       handleMessage(msg);
     } catch (e) {
       console.error('Parse error:', e);
     }
   };
 
-  ws.onclose = () => {
-    console.log('WebSocket closed');
+  ws.onclose = (e) => {
+    console.log('WebSocket closed:', e.code, e.reason);
     setStatus('disconnected', 'Disconnected');
     authenticated = false;
     scheduleReconnect();
@@ -425,6 +431,7 @@ function updateTouchpadRect() {
 let lastMoveTime = 0;
 function handleTouchStart(e) {
   if (!authenticated) return;
+  isPointerEvent = true;
   const touch = e.touches[0];
   touchStart = { x: touch.clientX, y: touch.clientY };
   lastTouchTime = Date.now();
@@ -463,6 +470,15 @@ function sendMouseMove(dx, dy) {
 }
 
 function sendMouseClick(button, down) {
+  const key = `${button}:${down}`;
+  if (down) {
+    if (pressedMouseButtons.has(key)) return;
+    pressedMouseButtons.add(key);
+  } else {
+    const upKey = `${button}:true`;
+    if (!pressedMouseButtons.has(upKey)) return;
+    pressedMouseButtons.delete(upKey);
+  }
   send('input', { inputType: 'mouse_click', data: { button, down } });
 }
 
@@ -474,13 +490,34 @@ touchpad.addEventListener('touchstart', handleTouchStart, { passive: false });
 touchpad.addEventListener('touchmove', handleTouchMove, { passive: false });
 touchpad.addEventListener('touchend', handleTouchEnd);
 
+let lastTouchTime = 0;
+let isPointerEvent = false;
+
 mouseBtns.forEach(btn => {
   const button = btn.dataset.button;
-  btn.addEventListener('touchstart', (e) => { e.preventDefault(); sendMouseClick(button, true); }, { passive: false });
-  btn.addEventListener('touchend', (e) => { e.preventDefault(); sendMouseClick(button, false); });
-  btn.addEventListener('mousedown', (e) => { e.preventDefault(); sendMouseClick(button, true); });
-  btn.addEventListener('mouseup', (e) => { e.preventDefault(); sendMouseClick(button, false); });
-  btn.addEventListener('mouseleave', (e) => { sendMouseClick(button, false); });
+  btn.addEventListener('touchstart', (e) => { 
+    isPointerEvent = true; 
+    e.preventDefault(); 
+    sendMouseClick(button, true); 
+  }, { passive: false });
+  btn.addEventListener('touchend', (e) => { 
+    e.preventDefault(); 
+    sendMouseClick(button, false); 
+  });
+  btn.addEventListener('mousedown', (e) => { 
+    if (isPointerEvent) return; 
+    e.preventDefault(); 
+    sendMouseClick(button, true); 
+  });
+  btn.addEventListener('mouseup', (e) => { 
+    if (isPointerEvent) return; 
+    e.preventDefault(); 
+    sendMouseClick(button, false); 
+  });
+  btn.addEventListener('mouseleave', (e) => { 
+    if (isPointerEvent) return; 
+    sendMouseClick(button, false); 
+  });
 });
 
 touchpad.addEventListener('wheel', (e) => {
@@ -508,11 +545,29 @@ function init() {
   
   // Arrow keys for PowerPoint
   arrowBtns.forEach(btn => {
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); sendKey(btn.dataset.key, true); }, { passive: false });
-    btn.addEventListener('touchend', (e) => { e.preventDefault(); sendKey(btn.dataset.key, false); });
-    btn.addEventListener('mousedown', (e) => { e.preventDefault(); sendKey(btn.dataset.key, true); });
-    btn.addEventListener('mouseup', (e) => { e.preventDefault(); sendKey(btn.dataset.key, false); });
-    btn.addEventListener('mouseleave', (e) => { sendKey(btn.dataset.key, false); });
+    btn.addEventListener('touchstart', (e) => { 
+      isPointerEvent = true; 
+      e.preventDefault(); 
+      sendKey(btn.dataset.key, true); 
+    }, { passive: false });
+    btn.addEventListener('touchend', (e) => { 
+      e.preventDefault(); 
+      sendKey(btn.dataset.key, false); 
+    });
+    btn.addEventListener('mousedown', (e) => { 
+      if (isPointerEvent) return; 
+      e.preventDefault(); 
+      sendKey(btn.dataset.key, true); 
+    });
+    btn.addEventListener('mouseup', (e) => { 
+      if (isPointerEvent) return; 
+      e.preventDefault(); 
+      sendKey(btn.dataset.key, false); 
+    });
+    btn.addEventListener('mouseleave', (e) => { 
+      if (isPointerEvent) return; 
+      sendKey(btn.dataset.key, false); 
+    });
   });
   
   // Virtual keyboard toggle
@@ -528,12 +583,39 @@ function init() {
   
   // Virtual keyboard keys
   keyboardKeys.forEach(key => {
-    key.addEventListener('touchstart', (e) => { e.preventDefault(); sendKey(key.dataset.key, true); key.classList.add('active'); }, { passive: false });
-    key.addEventListener('touchend', (e) => { e.preventDefault(); sendKey(key.dataset.key, false); key.classList.remove('active'); });
-    key.addEventListener('mousedown', (e) => { e.preventDefault(); sendKey(key.dataset.key, true); key.classList.add('active'); });
-    key.addEventListener('mouseup', (e) => { e.preventDefault(); sendKey(key.dataset.key, false); key.classList.remove('active'); });
-    key.addEventListener('mouseleave', (e) => { sendKey(key.dataset.key, false); key.classList.remove('active'); });
+    key.addEventListener('touchstart', (e) => { 
+      isPointerEvent = true; 
+      e.preventDefault(); 
+      sendKey(key.dataset.key, true); 
+      key.classList.add('active'); 
+    }, { passive: false });
+    key.addEventListener('touchend', (e) => { 
+      e.preventDefault(); 
+      sendKey(key.dataset.key, false); 
+      key.classList.remove('active'); 
+    });
+    key.addEventListener('mousedown', (e) => { 
+      if (isPointerEvent) return; 
+      e.preventDefault(); 
+      sendKey(key.dataset.key, true); 
+      key.classList.add('active'); 
+    });
+    key.addEventListener('mouseup', (e) => { 
+      if (isPointerEvent) return; 
+      e.preventDefault(); 
+      sendKey(key.dataset.key, false); 
+      key.classList.remove('active'); 
+    });
+    key.addEventListener('mouseleave', (e) => { 
+      if (isPointerEvent) return; 
+      sendKey(key.dataset.key, false); 
+      key.classList.remove('active'); 
+    });
   });
+  
+  // Reset pointer flag on any touch
+  document.addEventListener('touchstart', () => { isPointerEvent = true; }, { passive: true });
+  document.addEventListener('mousedown', () => { isPointerEvent = false; }, { passive: true });
 }
 
 function closeKeyboard() {
@@ -544,6 +626,17 @@ function closeKeyboard() {
 
 function sendKey(key, down) {
   if (!authenticated) return;
+  const pressedKey = `${key}:${down}`;
+  
+  if (down) {
+    if (pressedKeys.has(pressedKey)) return;
+    pressedKeys.add(pressedKey);
+  } else {
+    const downKey = `${key}:true`;
+    if (!pressedKeys.has(downKey)) return;
+    pressedKeys.delete(downKey);
+  }
+  
   send('input', { inputType: 'keyboard_key', data: { key, down } });
 }
 

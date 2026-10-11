@@ -11,6 +11,7 @@ export interface InputResult {
 }
 
 let useYdotool = true;
+let backendReady = false;
 
 async function checkYdotool(): Promise<boolean> {
   try {
@@ -38,11 +39,14 @@ async function initInputBackend() {
       console.warn('No input backend found (need ydotool or xdotool)');
     }
   }
+  backendReady = true;
 }
 
 initInputBackend();
 
 async function runYdotoolOrXdotool(ydotoolArgs: string[], xdotoolArgs: string[]): Promise<void> {
+  if (!backendReady) await initInputBackend();
+  
   if (useYdotool) {
     try {
       await execFileAsync('ydotool', ydotoolArgs);
@@ -52,6 +56,33 @@ async function runYdotoolOrXdotool(ydotoolArgs: string[], xdotoolArgs: string[])
     }
   }
   await execFileAsync('xdotool', xdotoolArgs);
+}
+
+function mapKey(key: string): string {
+  const map: Record<string, string> = {
+    'Escape': 'Escape',
+    'F1': 'F1', 'F2': 'F2', 'F3': 'F3', 'F4': 'F4',
+    'F5': 'F5', 'F6': 'F6', 'F7': 'F7', 'F8': 'F8',
+    'F9': 'F9', 'F10': 'F10', 'F11': 'F11', 'F12': 'F12',
+    '`': 'grave', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5',
+    '6': '6', '7': '7', '8': '8', '9': '9', '0': '0',
+    '-': 'minus', '=': 'equal', 'Backspace': 'BackSpace',
+    'Tab': 'Tab', 'q': 'q', 'w': 'w', 'e': 'e', 'r': 'r', 't': 't',
+    'y': 'y', 'u': 'u', 'i': 'i', 'o': 'o', 'p': 'p',
+    '[': 'bracketleft', ']': 'bracketright', '\\': 'backslash',
+    'CapsLock': 'Caps_Lock', 'a': 'a', 's': 's', 'd': 'd', 'f': 'f',
+    'g': 'g', 'h': 'h', 'j': 'j', 'k': 'k', 'l': 'l',
+    ';': 'semicolon', '\'': 'apostrophe', 'Enter': 'Return',
+    'ShiftLeft': 'Shift_L', 'z': 'z', 'x': 'x', 'c': 'c', 'v': 'v',
+    'b': 'b', 'n': 'n', 'm': 'm', ',': 'comma', '.': 'period',
+    '/': 'slash', 'ShiftRight': 'Shift_R',
+    'ControlLeft': 'Control_L', 'MetaLeft': 'Super_L', 'AltLeft': 'Alt_L',
+    'Space': 'space', 'AltRight': 'Alt_R', 'MetaRight': 'Super_R',
+    'ControlRight': 'Control_R',
+    'ArrowLeft': 'Left', 'ArrowUp': 'Up', 'ArrowRight': 'Right', 'ArrowDown': 'Down',
+    'Left': 'Left', 'Right': 'Right', 'Up': 'Up', 'Down': 'Down',
+  };
+  return map[key] || key.toLowerCase();
 }
 
 export async function moveMouse(x: number, y: number): Promise<InputResult> {
@@ -83,16 +114,10 @@ export async function clickMouse(button: 'left' | 'right' | 'middle', down: bool
     const btnMapYdo: Record<string, string> = { left: '1', right: '3', middle: '2' };
     const btnMapXdo: Record<string, string> = { left: '1', right: '3', middle: '2' };
     
-    if (down) {
-      await runYdotoolOrXdotool(
-        ['click', '1', btnMapYdo[button]],
-        ['mousedown', btnMapXdo[button]]
-      );
+    if (useYdotool) {
+      await execFileAsync('ydotool', ['click', down ? '1' : '0', btnMapYdo[button]]);
     } else {
-      await runYdotoolOrXdotool(
-        ['click', '0', btnMapYdo[button]],
-        ['mouseup', btnMapXdo[button]]
-      );
+      await execFileAsync('xdotool', down ? ['mousedown', btnMapXdo[button]] : ['mouseup', btnMapXdo[button]]);
     }
     return { success: true, output: `Mouse ${button} ${down ? 'down' : 'up'}` };
   } catch (err: any) {
@@ -102,10 +127,15 @@ export async function clickMouse(button: 'left' | 'right' | 'middle', down: bool
 
 export async function scrollMouse(deltaX: number, deltaY: number): Promise<InputResult> {
   try {
-    await runYdotoolOrXdotool(
-      ['mousescroll', '--', String(Math.round(deltaX)), String(Math.round(deltaY))],
-      ['click', '--repeat', String(Math.abs(Math.round(deltaY))), deltaY > 0 ? '4' : '5']
-    );
+    if (useYdotool) {
+      await execFileAsync('ydotool', ['mousescroll', '--', String(Math.round(deltaX)), String(Math.round(deltaY))]);
+    } else {
+      const clicks = Math.abs(Math.round(deltaY));
+      const btn = deltaY > 0 ? '4' : '5';
+      for (let i = 0; i < clicks; i++) {
+        await execFileAsync('xdotool', ['click', btn]);
+      }
+    }
     return { success: true, output: `Mouse scrolled ${deltaX},${deltaY}` };
   } catch (err: any) {
     return { success: false, error: 'Mouse scroll failed' };
@@ -114,10 +144,11 @@ export async function scrollMouse(deltaX: number, deltaY: number): Promise<Input
 
 export async function typeText(text: string): Promise<InputResult> {
   try {
-    await runYdotoolOrXdotool(
-      ['type', text],
-      ['type', text]
-    );
+    if (useYdotool) {
+      await execFileAsync('ydotool', ['type', text]);
+    } else {
+      await execFileAsync('xdotool', ['type', '--clearmodifiers', text]);
+    }
     return { success: true, output: `Typed ${text.length} characters` };
   } catch (err: any) {
     return { success: false, error: 'Keyboard type failed' };
@@ -126,17 +157,20 @@ export async function typeText(text: string): Promise<InputResult> {
 
 export async function pressKey(key: string, down: boolean): Promise<InputResult> {
   try {
-    const xdoKey = key.replace(/^Key/, '').toLowerCase();
-    if (down) {
-      await runYdotoolOrXdotool(
-        ['key', key],
-        ['keydown', xdoKey]
-      );
+    const mappedKey = mapKey(key);
+    
+    if (useYdotool) {
+      if (down) {
+        await execFileAsync('ydotool', ['key', mappedKey]);
+      } else {
+        await execFileAsync('ydotool', ['keyup', mappedKey]);
+      }
     } else {
-      await runYdotoolOrXdotool(
-        ['key', `u${key}`],
-        ['keyup', xdoKey]
-      );
+      if (down) {
+        await execFileAsync('xdotool', ['keydown', mappedKey]);
+      } else {
+        await execFileAsync('xdotool', ['keyup', mappedKey]);
+      }
     }
     return { success: true, output: `Key ${key} ${down ? 'down' : 'up'}` };
   } catch (err: any) {
@@ -146,13 +180,13 @@ export async function pressKey(key: string, down: boolean): Promise<InputResult>
 
 export async function keyCombo(keys: string[]): Promise<InputResult> {
   try {
+    const mappedKeys = keys.map(mapKey);
     if (useYdotool) {
-      for (const key of keys) {
+      for (const key of mappedKeys) {
         await execFileAsync('ydotool', ['key', key]);
       }
     } else {
-      const xdoKeys = keys.map(k => k.replace(/^Key/, '').toLowerCase());
-      await execFileAsync('xdotool', ['key', xdoKeys.join('+')]);
+      await execFileAsync('xdotool', ['key', mappedKeys.join('+')]);
     }
     return { success: true, output: `Key combo: ${keys.join('+')}` };
   } catch (err: any) {
